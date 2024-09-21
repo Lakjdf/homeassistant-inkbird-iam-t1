@@ -1,0 +1,52 @@
+= Home Assistant Integration for Inkbird IAM-T1
+
+Custom Home Assistant integration for systems with integrated bluetooth / bluetooth adapters.
+
+It keeps a continuous connection to the device to receive the sensor updates.
+
+== Install
+
+Copy into `config/custom_components/custom_inkbird/`.
+
+Overrides the default inkbird integration. To avoid that, change the domain from "inkbird" to something else in link:const.py[const.py].
+
+== Supported values
+
+.Sensors:
+- Temperature
+- Humidity
+- Carbon Dioxide
+- Air Pressure
+
+.Settings:
+* Alarm
+** Off
+** Once the co2 limit is reached
+** Every time the co2 limit is reached
+* Sampling Interval
+** 1, 2, 5 or 10 minutes
+
+=== Not supported
+
+- Firmware updates
+- custom CO2 thresholds
+- calibration
+- historic data
+- Battery status?
+
+
+== IAM-T1 Notes
+
+The device notifies the sensor data at `ffe4` every minute by default.
+
+Once "connected" (by writing `55aa0906010f` to `ffe9`), all device settings are notified at `ffe4`.
+The reported settings are:
+
+. Sampling Interval
+. co2 limits
+. Alarm mode
+. Celsius/Fahrenheit
+
+Writing `55aa0706000c` to `ffe9` leads to the whole co2 history being notified at `ffe4`.
+
+There are 5 different models: IAM-T1, ..., IAM-T5, which should only differ in colour.

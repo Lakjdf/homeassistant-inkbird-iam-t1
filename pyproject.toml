@@ -1,0 +1,3 @@
+[tool.pytest.ini_options]
+addopts = "-v -Wdefault -W ignore::DeprecationWarning"
+pythonpath = ["inkbird_ble_custom"]

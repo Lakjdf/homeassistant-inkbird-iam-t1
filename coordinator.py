@@ -12,7 +12,7 @@ class InkbirdCoordinator(DataUpdateCoordinator[InkbirdIamT1Device]):
         The udpate_interval is not used to poll updates,
         but for checking whether the device is still connected.
         """
-        super().__init__(hass, logger, name=name, update_interval=timedelta(minutes=5))
+        super().__init__(hass, logger, name=name, update_interval=timedelta(minutes=1))
         logger.info("Initializing InkbirdCoordinator with %s", device)
         # For some reason the ConfigEntry data is provided as a dict sometimes
         if isinstance(device, dict):

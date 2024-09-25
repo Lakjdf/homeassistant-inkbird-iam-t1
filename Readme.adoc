@@ -8,7 +8,7 @@ It keeps a continuous connection to the device to receive the sensor updates.
 
 Copy into `config/custom_components/custom_inkbird/`.
 
-Overrides the default inkbird integration. To avoid that, change the domain from "inkbird" to something else in link:const.py[const.py].
+Overrides the default inkbird integration. To avoid that, change the domain from "inkbird" to something else in link:manifest.json[manifest.json].
 
 == Supported values
 

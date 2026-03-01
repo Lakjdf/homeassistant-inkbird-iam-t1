@@ -8,7 +8,13 @@ It keeps a continuous connection to the device to receive the sensor updates.
 
 Copy into `config/custom_components/custom_inkbird/`.
 
-Overrides the default inkbird integration. To avoid that, change the domain from "inkbird" to something else in link:manifest.json[manifest.json].
+To enable debug logging of this integration, add the following to `configuration.yaml`:
+```yaml
+logger:
+    default: warning
+    logs:
+        custom_inkbird: debug
+```
 
 == Supported values
 

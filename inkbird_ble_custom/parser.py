@@ -9,7 +9,9 @@ from bluetooth_data_tools import human_readable_name
 import dataclasses
 from typing import Any, Type
 
-from bleak import BleakClient, BleakError
+from bleak import BleakClient
+from bleak_retry_connector import establish_connection
+from bleak.exc import BleakError
 from bleak.backends.device import BLEDevice
 
 from enum import Enum
@@ -20,7 +22,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .const import CHAR_WRITE_UUID
 
-_LOGGER = logging.getLogger("inkbird")
+_LOGGER = logging.getLogger("custom_inkbird")
 
 class ALARM_MODE(Enum):
     OFF         = 1
@@ -156,11 +158,13 @@ class InkbirdIamT1DeviceData:
         self.logger = logger
 
     async def _get_char_value(self, client: BleakClient, uuid: str) -> str:
+        data: str = ""
         try:
-            data = await client.read_gatt_char(uuid)
+            raw_data = await client.read_gatt_char(uuid)
+            data = raw_data.decode('utf-8', errors='ignore') if raw_data else ""
         except BleakError as err:
             self.logger.debug("Failed to read 'characterstic' %s", uuid, exc_info=err)
-        return data or ""
+        return data
 
     async def _get_device_characteristics(
         self, client: BleakClient, device: InkbirdIamT1Device
@@ -169,15 +173,21 @@ class InkbirdIamT1DeviceData:
         device.address = client.address
         device.manufacturer = "INKBIRD"
 
-        device.sw_version   = self._get_char_value(client, DeviceInfoChars.FirmwareRevision.value)
-        device.model        = self._get_char_value(client, DeviceInfoChars.Model.value)
+        device.sw_version   = await self._get_char_value(client, DeviceInfoChars.FirmwareRevision.value)
+        device.model        = await self._get_char_value(client, DeviceInfoChars.Model.value)
         return device
 
     async def update_device_only(self, ble_device: BLEDevice) -> InkbirdIamT1Device:
         """Connect to the device through BLE and retrieve relevant data."""
+        self.logger.debug("BLE device: %s (name=%s, address=%s)", ble_device, ble_device.name, ble_device.address)
         device = InkbirdIamT1Device()
-        client = BleakClient(ble_device)
-        await client.connect()
+        client = await establish_connection(
+            BleakClient,
+            ble_device,
+            ble_device.name or ble_device.address,
+            timeout=30,
+            max_attempts=3,
+        )
         try:
             device = await self._get_device_characteristics(client, device)
         finally:

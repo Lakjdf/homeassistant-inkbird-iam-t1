@@ -1,16 +1,15 @@
 import logging
 from typing import Any
 
-from .inkbird_ble_custom import InkbirdIamT1Device, InkbirdIamT1DeviceData
+from .inkbird_ble_custom import InkbirdIamT1Device
 import voluptuous as vol
 
-from homeassistant.components import bluetooth
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfo,
     async_discovered_service_info,
 )
 from homeassistant.config_entries import ConfigFlow
-from homeassistant.data_entry_flow import AbortFlow, FlowResult
+from homeassistant.data_entry_flow import FlowResult
 
 from .const import DOMAIN
 
@@ -25,24 +24,13 @@ class InspectorBLEConfigFlow(ConfigFlow, domain=DOMAIN):
         """Initialize the config flow."""
         self._discovered_devices: dict[str, InkbirdIamT1Device] = {}
 
-    async def _get_device_data(self, service_info: BluetoothServiceInfo) -> InkbirdIamT1Device:
-        ble_device = bluetooth.async_ble_device_from_address(self.hass, service_info.address)
-        if ble_device is None:
-            raise AbortFlow("cannot_connect")
-
-        deviceData = InkbirdIamT1DeviceData(_LOGGER)
-        return await deviceData.update_device_only(ble_device)
-    
-    async def _update_device_data(self, service_info: BluetoothServiceInfo):
-        try:
-            device = await self._get_device_data(service_info)
-        except AbortFlow:
-            return self.async_abort(reason="cannot_connect")
-        except Exception:
-            return self.async_abort(reason="unknown")
-
-        self._discovered_devices[device.address] = device
-        self.context["title_placeholders"] = {"name": device.name()}
+    def _device_from_discovery_info(self, discovery_info: BluetoothServiceInfo) -> InkbirdIamT1Device:
+        """Create a device object from BLE discovery info."""
+        device = InkbirdIamT1Device()
+        device.address = discovery_info.address
+        device.manufacturer = discovery_info.manufacturer or "INKBIRD"
+        device.model = discovery_info.advertisement.local_name or discovery_info.name or "Ink@IAM-T1"
+        return device
     
     def _show_selection_form(self, step_id: str) -> FlowResult:
         default_address = next(iter(self._discovered_devices.values())).address if self._discovered_devices else None
@@ -59,16 +47,19 @@ class InspectorBLEConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfo) -> FlowResult:
         """Handle the bluetooth discovery step."""
-        _LOGGER.debug("Discovered BLE device: %s", discovery_info.name)
+        _LOGGER.debug("async_step_bluetooth called with: %s", discovery_info)
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
         
-        await self._update_device_data(discovery_info)
+        device = self._device_from_discovery_info(discovery_info)
+        self._discovered_devices[device.address] = device
+        self.context["title_placeholders"] = {"name": device.name()}
+        
         return await self.async_step_bluetooth_confirm()
 
     async def async_step_bluetooth_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        _LOGGER.debug("async_step_bluetooth_confirm %s %s", user_input, self._discovered_devices)
         """Handle the bluetooth confirmation step."""
+        _LOGGER.debug("async_step_bluetooth_confirm %s %s", user_input, self._discovered_devices)
         if user_input is None or SELECTION_TITLE not in user_input:
             return self._show_selection_form("bluetooth_confirm")
         else:
@@ -85,12 +76,12 @@ class InspectorBLEConfigFlow(ConfigFlow, domain=DOMAIN):
                     _LOGGER.debug("Detected a device that's already configured: %s", address)
                     continue
 
-                if not discovery_info.advertisement.local_name:
-                    continue
-                if not discovery_info.advertisement.local_name.startswith("Ink@IAM-T"):
+                local_name = getattr(discovery_info.advertisement, 'local_name', None)
+                if not local_name or not local_name.startswith("Ink@IAM-T"):
                     continue
 
-                await self._update_device_data(discovery_info)
+                device = self._device_from_discovery_info(discovery_info)
+                self._discovered_devices[address] = device
 
             if not self._discovered_devices:
                 return self.async_abort(reason="no_devices_found")

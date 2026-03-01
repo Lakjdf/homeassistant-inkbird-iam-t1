@@ -1,4 +1,4 @@
-from parser import InkbirdIamT1Device, ALARM_MODE, SAMPLING_INTERVAL, TEMPERATURE_UNIT
+from inkbird_ble_custom import InkbirdIamT1Device, ALARM_MODE, SAMPLING_INTERVAL, TEMPERATURE_UNIT
 from homeassistant.components.sensor import SensorDeviceClass
 import pytest
 
